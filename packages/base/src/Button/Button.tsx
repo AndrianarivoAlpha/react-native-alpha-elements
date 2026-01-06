@@ -4,6 +4,8 @@ import {
   ActivityIndicator,
   ActivityIndicatorProps,
   Platform,
+  Pressable,
+  PressableProps,
   StyleProp,
   StyleSheet,
   Text,
@@ -43,7 +45,8 @@ const positionStyle = {
 };
 
 export interface ButtonProps
-  extends TouchableOpacityProps,
+  extends PressableProps,
+    TouchableOpacityProps,
     TouchableNativeFeedbackProps {
   /** Add button title. */
   title?: string | React.ReactElement<{}>;
@@ -170,11 +173,11 @@ export const Button: RneFunctionComponent<ButtonProps> = ({
     [loading, onPress, disabled]
   );
 
-  // Refactor to Pressable
+  // Use Pressable for better compatibility with new architecture
   const TouchableComponentInternal =
     TouchableComponent ||
     Platform.select({
-      android: linearGradientProps ? TouchableOpacity : TouchableNativeFeedback,
+      android: Pressable,
       default: TouchableOpacity,
     });
 
@@ -203,8 +206,30 @@ export const Button: RneFunctionComponent<ButtonProps> = ({
     ]
   );
 
+  // Android ripple effect for Pressable - recalculates when disabled state changes
+  const androidRipple = useMemo(
+    () =>
+      Platform.OS === 'android'
+        ? {
+            color: Color(
+              disabled
+                ? color(theme?.colors?.disabled).darken(0.3).string()
+                : type === 'solid'
+                  ? 'white'
+                  : theme?.colors?.primary
+            )
+              .alpha(0.32)
+              .rgb()
+              .string(),
+            borderless: false,
+          }
+        : undefined,
+    [disabled, theme?.colors?.disabled, theme?.colors?.primary, type]
+  );
+
+  // Legacy background prop for TouchableNativeFeedback (when custom TouchableComponent is passed)
   const background =
-    Platform.OS === 'android' && Platform.Version >= 21
+    Platform.OS === 'android' && Platform.Version >= 21 && TouchableComponent
       ? TouchableNativeFeedback.Ripple(
           Color(titleStyle?.color?.toString()).alpha(0.32).rgb().string(),
           false
@@ -252,6 +277,7 @@ export const Button: RneFunctionComponent<ButtonProps> = ({
         accessibilityRole="button"
         accessibilityState={accessibilityState}
         disabled={disabled}
+        android_ripple={androidRipple}
         background={background}
         {...rest}
       >
